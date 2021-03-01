@@ -114,7 +114,7 @@ def update_class_visulization(model, target_y, l2_reg, learning_rate, img):
     ########################################################################
     out = model(img)
     out_gathered = out[np.arange(img.shape[0]), target_y]
-    grad = torch.autograd.grad(out_gathered - l2_reg*torch.linalg.norm(img), img, torch.ones(1))[0]
+    grad = torch.autograd.grad(out_gathered + l2_reg*torch.linalg.norm(img), img, torch.ones(1))[0]
     dX = learning_rate * grad / torch.linalg.norm(grad)
     X = img.clone() + dX
     img = X
