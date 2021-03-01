@@ -137,7 +137,30 @@ class CaptioningRNN(object):
         # defined above to store loss and gradients; grads[k] should give the      #
         # gradients for self.params[k].                                            #
         ############################################################################
-        pass
+        h0 = np.matmul(features, W_proj) + b_proj
+        x_inbed, cache_inbed = word_embedding_forward(captions_in, W_embed)
+        if self.cell_type == 'rnn':
+            rnn_out, rnn_cache = rnn_forward(x_inbed, h0, Wx, Wh, b)
+        if self.cell_type == 'lstm':
+            rnn_out, rnn_cache = lstm_forward(x_inbed, h0, Wx, Wh, b)
+        vocab_out, vocab_cache = temporal_affine_forward(rnn_out, W_vocab, b_vocab)
+        loss, dout = temporal_softmax_loss(vocab_out, captions_out, mask)
+        dvocab, dW_vocab, db_vocab = temporal_affine_backward(dout, vocab_cache)
+        if self.cell_type == 'rnn':
+            drnn, dh0, dWx, dWh, db = rnn_backward(dvocab, rnn_cache)
+        if self.cell_type == 'lstm':
+            drnn, dh0, dWx, dWh, db = lstm_backward(dvocab, rnn_cache)
+        dW_embed = word_embedding_backward(drnn, cache_inbed)
+        dW_proj = np.matmul(features.T, dh0)
+        db_proj = np.sum(dh0, axis=0)
+        grads['W_proj'] = dW_proj
+        grads['b_proj'] = db_proj
+        grads['W_embed'] = dW_embed
+        grads['Wx'] = dWx
+        grads['Wh'] = dWh
+        grads['b'] = db
+        grads['W_vocab'] = dW_vocab
+        grads['b_vocab'] = db_vocab
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -199,7 +222,21 @@ class CaptioningRNN(object):
         # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
         # a loop.                                                                 #
         ###########################################################################
-        pass
+        h0 = np.matmul(features, W_proj) + b_proj
+        x = self._start * np.ones((N, 1), dtype=np.int32)
+        prev_h = h0
+        prev_c = np.zeros(h0.shape)
+        for i in range(max_length):
+          x_embed, cache_embed = word_embedding_forward(x, W_embed)
+          if self.cell_type == 'rnn':
+            next_h, cache_rnn = rnn_step_forward(np.squeeze(x_embed), prev_h, Wx, Wh, b)
+          if self.cell_type == 'lstm':
+            next_h, next_c, cache_lstm = lstm_step_forward(np.squeeze(x_embed), prev_h, prev_c, Wx, Wh, b)
+            prev_c = next_c
+          scores, cache_vocab = temporal_affine_forward(next_h[:, np.newaxis, :], W_vocab, b_vocab)
+          captions[:, i] = np.squeeze(np.argmax(scores, axis=2))
+          x = np.argmax(scores, axis=2)
+          prev_h = next_h
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################

@@ -31,7 +31,11 @@ def compute_saliency_maps(X, y, model):
     # to each input image. You first want to compute the loss over the correct   #
     # scores, and then compute the gradients with torch.autograd.gard.           #
     ##############################################################################
-    pass
+    out = model(X)
+    out_gathered = out.gather(1, y.view(-1, 1)).squeeze()
+    grad = torch.autograd.grad(out_gathered, X, torch.ones_like(y))[0]
+    grad = grad.abs()
+    saliency, _ = torch.max(grad, dim=1)
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
@@ -69,7 +73,17 @@ def make_fooling_image(X, target_y, model):
     # in fewer than 100 iterations of gradient ascent.                           #
     # You can print your progress over iterations to check your algorithm.       #
     ##############################################################################
-    pass
+    i = 0
+    y_pred = -1
+    while y_pred != target_y:
+        out = model(X_fooling)
+        out_gathered = out[np.arange(X.shape[0]), target_y]
+        grad = torch.autograd.grad(out_gathered, X_fooling, torch.ones(1))[0]
+        dX = learning_rate * grad / torch.linalg.norm(grad)
+        X += dX
+        X_fooling = X.clone().detach().requires_grad_(True)
+        y_pred = out.argmax(axis=1)
+        i += 1
     ##############################################################################
     #                             END OF YOUR CODE                               #
     ##############################################################################
@@ -98,7 +112,12 @@ def update_class_visulization(model, target_y, l2_reg, learning_rate, img):
     # L2 regularization term!                                              #
     # Be very careful about the signs of elements in your code.            #
     ########################################################################
-    pass
+    out = model(img)
+    out_gathered = out[np.arange(img.shape[0]), target_y]
+    grad = torch.autograd.grad(out_gathered - l2_reg*torch.linalg.norm(img), img, torch.ones(1))[0]
+    dX = learning_rate * grad / torch.linalg.norm(grad)
+    X = img.clone() + dX
+    img = X
     ########################################################################
     #                             END OF YOUR CODE                         #
     ########################################################################
