@@ -75,7 +75,7 @@ def make_fooling_image(X, target_y, model):
     ##############################################################################
     i = 0
     y_pred = -1
-    while y_pred != target_y:
+    while y_pred != target_y and i < 100:
         out = model(X_fooling)
         out_gathered = out[np.arange(X.shape[0]), target_y]
         grad = torch.autograd.grad(out_gathered, X_fooling, torch.ones(1))[0]
@@ -114,8 +114,8 @@ def update_class_visulization(model, target_y, l2_reg, learning_rate, img):
     ########################################################################
     out = model(img)
     out_gathered = out[np.arange(img.shape[0]), target_y]
-    grad = torch.autograd.grad(out_gathered + l2_reg*torch.linalg.norm(img), img, torch.ones(1))[0]
-    dX = learning_rate * grad / torch.linalg.norm(grad)
+    grad = torch.autograd.grad(out_gathered - l2_reg*torch.linalg.norm(img), img, torch.ones(1))[0]
+    dX = learning_rate * grad
     X = img.clone() + dX
     img = X
     ########################################################################
